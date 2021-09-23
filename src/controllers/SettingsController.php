@@ -114,9 +114,9 @@ class SettingsController extends Controller
         ];
 
         foreach ($schemas as $schema) {
-            if ($publicSchema && $schema->id === $publicSchema->id) {
-                continue;
-            }
+            // if ($publicSchema && $schema->id === $publicSchema->id) {
+            //     continue;
+            // }
 
             $schemaOptions[] = [
                 'label' => $schema->name,
