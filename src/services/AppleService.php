@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Component;
 use craft\events\RegisterGqlMutationsEvent;
 use craft\events\RegisterGqlQueriesEvent;
+use craft\records\GqlSchema as GqlSchemaRecord;
 use craft\services\Gql;
 use craft\services\UserGroups;
 use GraphQL\Error\Error;
@@ -106,10 +107,10 @@ class AppleService extends Component
                     'args' => $args,
                     'resolve' => function ($source, array $arguments) use ($defaultPlatform) {
                         $settings = GraphqlAuthentication::$settings;
-                        $schemaId = $settings->schemaId;
+                        $schemaId = GqlSchemaRecord::find()->select(['id'])->where(['name' => $settings->schemaName])->scalar();
 
                         if (!$schemaId) {
-                            GraphqlAuthentication::$errorService->throw($settings->invalidSchema, 'INVALID');
+                            GraphqlAuthentication::$errorService->throw($settings->invalidSchema);
                         }
 
                         $code = $arguments['code'];
@@ -136,10 +137,11 @@ class AppleService extends Component
                         'args' => $args,
                         'resolve' => function ($source, array $arguments) use ($userGroup, $defaultPlatform) {
                             $settings = GraphqlAuthentication::$settings;
-                            $schemaId = $settings->granularSchemas["group-{$userGroup->id}"]['schemaId'] ?? null;
+                            $schemaName = $settings->granularSchemas['group-' . $userGroup->id]['schemaName'] ?? null;
+                            $schemaId = GqlSchemaRecord::find()->select(['id'])->where(['name' => $schemaName])->scalar();
 
                             if (!$schemaId) {
-                                GraphqlAuthentication::$errorService->throw($settings->invalidSchema, 'INVALID');
+                                GraphqlAuthentication::$errorService->throw($settings->invalidSchema);
                             }
 
                             $code = $arguments['code'];
@@ -220,7 +222,7 @@ class AppleService extends Component
                 'form_params' => $params,
             ])->getBody()->getContents());
         } catch (Throwable $e) {
-            $errorService->throw($settings->invalidOauthToken, 'INVALID');
+            $errorService->throw($settings->invalidOauthToken);
         }
 
         $claims = explode('.', $response->id_token)[1];
@@ -229,7 +231,7 @@ class AppleService extends Component
         $email = $claims->email;
 
         if (!$email || !isset($email)) {
-            $errorService->throw($settings->emailNotInScope, 'INVALID');
+            $errorService->throw($settings->emailNotInScope);
         }
 
         $name = explode(' ', $claims->name ?? '', 1);

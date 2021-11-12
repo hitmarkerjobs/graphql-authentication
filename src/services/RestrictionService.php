@@ -24,6 +24,7 @@ use craft\services\Volumes;
 use GraphQL\Error\Error;
 use GraphQL\Language\AST\FieldNode;
 use GraphQL\Language\AST\OperationDefinitionNode;
+use GraphQL\Language\AST\SelectionSetNode;
 use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\Type;
 use jamesedmonston\graphqlauthentication\GraphqlAuthentication;
@@ -218,36 +219,39 @@ class RestrictionService extends Component
 
         $errorService = GraphqlAuthentication::$errorService;
 
-        $privateFields = array_keys(array_filter($fieldPermissions, function ($permission) {
-            return $permission === 'private';
-        }));
-
-        // To-do: traverse through DocumentNode to find Arguments and Tokens, instead looking at query string
-        if (StringHelper::containsAny($event->query, $privateFields)) {
-            $errorService->throw($settings->forbiddenField, 'FORBIDDEN');
-        }
-
         $queryFields = array_keys(array_filter($fieldPermissions, function ($permission) {
             return $permission === 'query';
         }));
 
-        if (!count($queryFields)) {
-            return;
-        }
+        $privateFields = array_keys(array_filter($fieldPermissions, function ($permission) {
+            return $permission === 'private';
+        }));
 
         /** @var OperationDefinitionNode */
         foreach ($definitions as $definition) {
-            if (isset($definition->operation) && $definition->operation !== 'mutation') {
+            if (!isset($definition->operation)) {
                 continue;
             }
 
-            /** @var FieldNode */
+            $forbiddenArguments = [];
+
+            if ($definition->operation === 'query') {
+                $forbiddenArguments = $privateFields;
+            } else {
+                $forbiddenArguments = array_merge($queryFields, $privateFields);
+            }
+
+            /** @var SelectionSetNode */
             foreach ($definition->selectionSet->selections ?? [] as $selectionSet) {
+                // loop through arguments
                 foreach ($selectionSet->arguments ?? [] as $argument) {
-                    if (in_array($argument->name->value ?? '', $queryFields)) {
-                        $errorService->throw($settings->forbiddenField, 'FORBIDDEN');
+                    if (in_array($argument->name->value ?? '', $forbiddenArguments)) {
+                        $errorService->throw($settings->forbiddenField);
                     }
                 }
+
+                // loop through field selections
+                $this->_ensureValidFields($selectionSet, $privateFields);
             }
         }
     }
@@ -342,9 +346,8 @@ class RestrictionService extends Component
 
         $user = GraphqlAuthentication::$tokenService->getUserFromToken();
 
-        if ($event->isNew) {
+        if ($event->isNew && !$event->sender->authorId) {
             $event->sender->authorId = $user->id;
-            return true;
         }
 
         $authorOnlySections = $this->getAuthorOnlySections($user, 'mutation');
@@ -358,7 +361,7 @@ class RestrictionService extends Component
         }
 
         if ((string) $event->sender->authorId !== (string) $user->id) {
-            GraphqlAuthentication::$errorService->throw(GraphqlAuthentication::$settings->forbiddenMutation, 'FORBIDDEN');
+            GraphqlAuthentication::$errorService->throw(GraphqlAuthentication::$settings->forbiddenMutation);
         }
 
         return true;
@@ -395,7 +398,7 @@ class RestrictionService extends Component
         }
 
         if ((string) $event->sender->uploaderId !== (string) $user->id) {
-            GraphqlAuthentication::$errorService->throw(GraphqlAuthentication::$settings->forbiddenMutation, 'FORBIDDEN');
+            GraphqlAuthentication::$errorService->throw(GraphqlAuthentication::$settings->forbiddenMutation);
         }
 
         return true;
@@ -483,6 +486,30 @@ class RestrictionService extends Component
     // =========================================================================
 
     /**
+     * Recurses through query and mutation field selections, ensuring they're queryable
+     *
+     * @param $selectionSet
+     * @param array $fields
+     * @throws Error
+     */
+    private function _ensureValidFields($selectionSet, array $fields)
+    {
+        $errorService = GraphqlAuthentication::$errorService;
+        $settings = GraphqlAuthentication::$settings;
+
+        /** @var FieldNode */
+        foreach ($selectionSet->selectionSet->selections ?? [] as $field) {
+            if (in_array($field->name->value ?? '', $fields)) {
+                $errorService->throw($settings->forbiddenField);
+            }
+
+            if (count($field->selectionSet->selections ?? [])) {
+                $this->_ensureValidFields($field, $fields);
+            }
+        }
+    }
+
+    /**
      * Ensures entry being accessed isn't private
      *
      * @param int $id
@@ -499,7 +526,7 @@ class RestrictionService extends Component
         $entry = $elementsService->getElementById($id);
 
         if (!$entry) {
-            $errorService->throw($settings->entryNotFound, 'INVALID');
+            $errorService->throw($settings->entryNotFound);
         }
 
         if (!$entry->authorId) {
@@ -516,7 +543,7 @@ class RestrictionService extends Component
         $scope = $tokenService->getSchemaFromToken()->scope;
 
         if (!in_array("sections.{$entry->section->uid}:read", $scope)) {
-            $errorService->throw($settings->forbiddenMutation, 'FORBIDDEN');
+            $errorService->throw($settings->forbiddenMutation);
         }
 
         $authorOnlySections = $this->getAuthorOnlySections($user, 'mutation');
@@ -526,7 +553,7 @@ class RestrictionService extends Component
         $entrySection = $sectionsService->getSectionById($entry->sectionId)->handle;
 
         if (in_array($entrySection, $authorOnlySections)) {
-            $errorService->throw($settings->forbiddenMutation, 'FORBIDDEN');
+            $errorService->throw($settings->forbiddenMutation);
         }
 
         return true;
@@ -549,7 +576,7 @@ class RestrictionService extends Component
         $asset = $assetsService->getAssetById($id);
 
         if (!$asset) {
-            $errorService->throw($settings->assetNotFound, 'INVALID');
+            $errorService->throw($settings->assetNotFound);
         }
 
         if (!$asset->uploaderId) {
@@ -566,7 +593,7 @@ class RestrictionService extends Component
         $scope = $tokenService->getSchemaFromToken()->scope;
 
         if (!in_array("volumes.{$asset->volume->uid}:read", $scope)) {
-            $errorService->throw($settings->forbiddenMutation, 'FORBIDDEN');
+            $errorService->throw($settings->forbiddenMutation);
         }
 
         $authorOnlyVolumes = $this->getAuthorOnlyVolumes($user, 'mutation');
@@ -576,7 +603,7 @@ class RestrictionService extends Component
         $assetVolume = $volumesService->getVolumeById($asset->volumeId)->handle;
 
         if (in_array($assetVolume, $authorOnlyVolumes)) {
-            $errorService->throw($settings->forbiddenMutation, 'FORBIDDEN');
+            $errorService->throw($settings->forbiddenMutation);
         }
 
         return true;

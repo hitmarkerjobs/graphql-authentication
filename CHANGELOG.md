@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/) and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Fixed migration issue that occurred when setting a password for users with an unverified email (created in the control panel)
+
+## 1.12.1 - 2021-11-09
+
+### Fixed
+
+- Fixed migration issue that occurred when not using multiple schemas ([#78](https://github.com/jamesedmonston/graphql-authentication/pull/78))
+
+## 1.12.0 - 2021-11-05
+
+### Added
+
+- A `TokenService::parseToken(string $jwt):Token` method that allows parsing a JWT from anywhere, not just the `Authorization` HTTP header ([#75](https://github.com/jamesedmonston/graphql-authentication/pull/75), thanks [@nstCactus](https://github.com/nstCactus)!)
+- The ability to pass the token as a string to the `TokenService::getUserFromToken()` method instead of always getting the token from the `Authorization` HTTP header ([#75](https://github.com/jamesedmonston/graphql-authentication/pull/75), thanks [@nstCactus](https://github.com/nstCactus)!)
+
+### Changed
+
+- Tokens now store schema references via `schemaName` instead of `schemaId` to improve cross-environment behaviour ([#64](https://github.com/jamesedmonston/graphql-authentication/pull/64), thanks [@SayChi](https://github.com/SayChi)!)
+- Creating new entries via a mutation no longer forces the author to be the current user, if an `authorId` argument is supplied (note: it still respects the `Restricted Entry Mutations` plugin settings!) ([#63](https://github.com/jamesedmonston/graphql-authentication/pull/63), thanks [@cliveportman](https://github.com/cliveportman)!)
+
+### Fixed
+
+- Fixed issue with user mutation fields not clearing value if sent as `null` ([#73](https://github.com/jamesedmonston/graphql-authentication/pull/73), thanks [@hendrik-agprop](https://github.com/hendrik-agprop)!)
+- Fixed issue with users not being created as `pending` if 'suspend users by default' was enabled ([#77](https://github.com/jamesedmonston/graphql-authentication/pull/77), thanks [@Zsavajji](https://github.com/Zsavajji)!)
+- Fixed issue with authentication mutations returning `Internal server error` instead of contextual errors ([#74](https://github.com/jamesedmonston/graphql-authentication/issues/74))
+
+## 1.11.5 - 2021-09-27
+
+### Fixed
+
+- Fixed issue with errors being thrown as `Something went wrong when processing the GraphQL query.` instead of contextual errors. E.g. requests with an expired token will now throw `Invalid Authorization Header`
+
+## 1.11.4 - 2021-09-23
+
+### Fixed
+
+- Fixed issue with `restrictForbiddenFields` throwing errors too eagerly ([#71](https://github.com/jamesedmonston/graphql-authentication/issues/71))
+- Fixed issue with `globalSet` queries sometimes throwing an error ([#68](https://github.com/jamesedmonston/graphql-authentication/issues/68))
+
 ## 1.11.3 - 2021-08-27
 
 ### Fixed

@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Component;
 use craft\events\RegisterGqlMutationsEvent;
 use craft\events\RegisterGqlQueriesEvent;
+use craft\records\GqlSchema as GqlSchemaRecord;
 use craft\services\Gql;
 use craft\services\UserGroups;
 use GraphQL\Error\Error;
@@ -95,10 +96,10 @@ class FacebookService extends Component
                     ],
                     'resolve' => function ($source, array $arguments) {
                         $settings = GraphqlAuthentication::$settings;
-                        $schemaId = $settings->schemaId;
+                        $schemaId = GqlSchemaRecord::find()->select(['id'])->where(['name' => $settings->schemaName])->scalar();
 
                         if (!$schemaId) {
-                            GraphqlAuthentication::$errorService->throw($settings->invalidSchema, 'INVALID');
+                            GraphqlAuthentication::$errorService->throw($settings->invalidSchema);
                         }
 
                         $code = $arguments['code'];
@@ -126,10 +127,11 @@ class FacebookService extends Component
                         ],
                         'resolve' => function ($source, array $arguments) use ($userGroup) {
                             $settings = GraphqlAuthentication::$settings;
-                            $schemaId = $settings->granularSchemas["group-{$userGroup->id}"]['schemaId'] ?? null;
+                            $schemaName = $settings->granularSchemas['group-' . $userGroup->id]['schemaName'] ?? null;
+                            $schemaId = GqlSchemaRecord::find()->select(['id'])->where(['name' => $schemaName])->scalar();
 
                             if (!$schemaId) {
-                                GraphqlAuthentication::$errorService->throw($settings->invalidSchema, 'INVALID');
+                                GraphqlAuthentication::$errorService->throw($settings->invalidSchema);
                             }
 
                             $code = $arguments['code'];
@@ -182,14 +184,14 @@ class FacebookService extends Component
         ]);
 
         if (!$accessToken) {
-            $errorService->throw($settings->invalidOauthToken, 'INVALID');
+            $errorService->throw($settings->invalidOauthToken);
         }
 
         $user = $client->getResourceOwner($accessToken);
         $email = $user->getEmail();
 
         if (!$email || !isset($email)) {
-            $errorService->throw($settings->emailNotInScope, 'INVALID');
+            $errorService->throw($settings->emailNotInScope);
         }
 
         if ($settings->allowedFacebookDomains) {
