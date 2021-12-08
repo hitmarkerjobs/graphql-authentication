@@ -5,7 +5,7 @@
 {{ forms.field({
   instructions: "Here you can customize the response and error messages returned/thrown from queries and mutations.",
   first: true,
-}, null) }}
+}, '') }}
 
 <hr/>
 <h2>Responses</h2>
@@ -49,6 +49,13 @@
   label: 'Password Reset Sent',
   name: 'passwordResetSent',
   value: settings.passwordResetSent,
+  required: true,
+}) }}
+
+{{ forms.textField({
+  label: 'Password Reset Required',
+  name: 'passwordResetRequired',
+  value: settings.passwordResetRequired,
   required: true,
 }) }}
 
