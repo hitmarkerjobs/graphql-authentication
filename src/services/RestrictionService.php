@@ -282,7 +282,7 @@ class RestrictionService extends Component
             switch ($field->elementType) {
                 case 'craft\\elements\\Entry':
                     foreach ($field->id as $id) {
-                        $this->_ensureValidEntry($id, $field->site->id);
+                        $this->_ensureValidEntry($id, $event->sender->site->id ?? null);
                     }
                     break;
 
@@ -308,7 +308,7 @@ class RestrictionService extends Component
                             switch ($matrixField->elementType) {
                                 case 'craft\\elements\\Entry':
                                     foreach ($matrixField->id as $id) {
-                                        $this->_ensureValidEntry($id, $matrixField->site->id);
+                                        $this->_ensureValidEntry($id, $event->sender->site->id ?? null);
                                     }
                                     break;
 
