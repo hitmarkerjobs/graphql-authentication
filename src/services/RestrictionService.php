@@ -282,7 +282,7 @@ class RestrictionService extends Component
             switch ($field->elementType) {
                 case 'craft\\elements\\Entry':
                     foreach ($field->id as $id) {
-                        $this->_ensureValidEntry($id);
+                        $this->_ensureValidEntry($id, $field->site->id);
                     }
                     break;
 
@@ -308,7 +308,7 @@ class RestrictionService extends Component
                             switch ($matrixField->elementType) {
                                 case 'craft\\elements\\Entry':
                                     foreach ($matrixField->id as $id) {
-                                        $this->_ensureValidEntry($id);
+                                        $this->_ensureValidEntry($id, $matrixField->site->id);
                                     }
                                     break;
 
@@ -516,14 +516,14 @@ class RestrictionService extends Component
      * @return bool
      * @throws Error
      */
-    protected function _ensureValidEntry(int $id): bool
+    protected function _ensureValidEntry(int $id, int $siteId = null): bool
     {
         $settings = GraphqlAuthentication::$settings;
         $errorService = GraphqlAuthentication::$errorService;
 
         /** @var Elements */
         $elementsService = Craft::$app->getElements();
-        $entry = $elementsService->getElementById($id);
+        $entry = $elementsService->getElementById($id, null, $siteId);
 
         if (!$entry) {
             $errorService->throw($settings->entryNotFound);
