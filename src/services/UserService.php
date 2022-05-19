@@ -484,7 +484,7 @@ class UserService extends Component
      * @return User
      * @throws Error
      */
-    public function create(array $arguments, int $userGroup): User
+    public function create(array $arguments, int $userGroup, bool $signSignOn = false): User
     {
         $email = $arguments['email'];
         $password = $arguments['password'];
@@ -516,7 +516,7 @@ class UserService extends Component
 
         /** @var ProjectConfig */
         $projectConfigService = Craft::$app->getProjectConfig();
-        $requiresVerification = $projectConfigService->get('users.requireEmailVerification');
+        $requiresVerification = !$signSignOn && $projectConfigService->get('users.requireEmailVerification');
         $suspendByDefault = $projectConfigService->get('users.suspendByDefault');
 
         if ($requiresVerification || $suspendByDefault) {
